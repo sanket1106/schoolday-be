@@ -1,18 +1,27 @@
 #!/bin/bash
 
-# Database credentials
-DB_USER="root"
-DB_PASS="rootpassword"
-DB_NAME="schoolday"
-
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Load environment variables from .env file
+ENV_FILE="$SCRIPT_DIR/../.env"
+
+if [ -f "$ENV_FILE" ]; then
+  source "$ENV_FILE"
+else
+  echo "Error: .env file not found at $ENV_FILE"
+  echo "Please create it from .env.example and configure your MySQL password"
+  exit 1
+fi
+
+# Database credentials from environment
+DB_USER="root"
+DB_PASS="${MYSQL_ROOT_PASSWORD}"
+DB_NAME="${MYSQL_DATABASE:-schoolday}"
+MYSQL_HOST="${MYSQL_HOST:-localhost}"
+
 # Path to the SQL file
 SQL_SCRIPT="${SCRIPT_DIR}/sql/basedata.sql"
-
-# MySQL host (default is localhost)
-MYSQL_HOST="localhost"
 
 # Check if the SQL script exists
 if [ ! -f "$SQL_SCRIPT" ]; then

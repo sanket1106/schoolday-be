@@ -3,14 +3,25 @@
 # Test database setup script
 # This script creates the test database and applies the schema
 
-# Database configuration
-DB_NAME="schoolday_test"
-DB_USER="root"
-DB_PASSWORD="rootpassword"
-CONTAINER_NAME="mysql8"
-
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load environment variables from .env file
+ENV_FILE="$SCRIPT_DIR/../.env"
+
+if [ -f "$ENV_FILE" ]; then
+  source "$ENV_FILE"
+else
+  echo "Error: .env file not found at $ENV_FILE"
+  echo "Please create it from .env.example and configure your MySQL password"
+  exit 1
+fi
+
+# Database configuration from environment
+DB_NAME="schoolday_test"
+DB_USER="root"
+DB_PASSWORD="${MYSQL_ROOT_PASSWORD}"
+CONTAINER_NAME="mysql8"
 
 # SQL script paths
 SCHEMA_SCRIPT="${SCRIPT_DIR}/sql/schema_test.sql"

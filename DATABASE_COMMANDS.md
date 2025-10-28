@@ -3,6 +3,7 @@
 This guide provides a comprehensive reference for all database and container management commands available in the SchoolDay project.
 
 ## Table of Contents
+- [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Main Command Interface](#main-command-interface)
 - [Container Management](#container-management)
@@ -15,10 +16,49 @@ This guide provides a comprehensive reference for all database and container man
 
 ---
 
+## Prerequisites
+
+### Environment Configuration
+
+**IMPORTANT:** All scripts now use environment variables for sensitive information like passwords. You must configure these before running any commands.
+
+1. **Copy the example environment file:**
+   ```bash
+   cp infra/.env.example infra/.env
+   ```
+
+2. **Edit `infra/.env` and set your MySQL password:**
+   ```bash
+   # MySQL Configuration
+   MYSQL_ROOT_PASSWORD=your_secure_password_here
+   MYSQL_DATABASE=schoolday
+   MYSQL_PORT=3306
+   MYSQL_HOST=localhost
+   ```
+
+3. **Export environment variables for Spring Boot application:**
+   ```bash
+   export MYSQL_ROOT_PASSWORD=your_secure_password_here
+   export MYSQL_HOST=localhost
+   export MYSQL_PORT=3306
+   export MYSQL_DATABASE=schoolday
+   ```
+
+   Or add them to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.)
+
+**Security Note:** The `infra/.env` file is excluded from git via `.gitignore`. Never commit passwords to version control.
+
+---
+
 ## Quick Start
 
 ### Complete Setup from Scratch
 ```bash
+# 1. Configure environment (see Prerequisites above)
+cp infra/.env.example infra/.env
+# Edit infra/.env and set MYSQL_ROOT_PASSWORD
+
+# 2. Initialize infrastructure
 ./schoolday.sh dev init all           # Initialize network and MySQL container
 ./schoolday.sh dev create mysql-schema # Create database schema
 ./schoolday.sh dev insert data         # Seed initial data
@@ -129,10 +169,12 @@ Removes containers (data in volumes is preserved).
 - **Image:** `mysql:8`
 - **Container Name:** `mysql8`
 - **Port:** `3306:3306` (host:container)
-- **Root Password:** `rootpassword`
-- **Database:** `schoolday`
+- **Root Password:** Configured in `infra/.env` (`MYSQL_ROOT_PASSWORD`)
+- **Database:** Configured in `infra/.env` (`MYSQL_DATABASE`, default: `schoolday`)
 - **Volume:** `mysql-data:/var/lib/mysql` (persistent storage)
 - **Network:** Custom Podman network
+
+**Note:** This script loads credentials from `infra/.env` file.
 
 ### Initialize Network
 **Script:** [infra/containers/init_network.sh](infra/containers/init_network.sh)
@@ -173,10 +215,12 @@ Generic utility to start any container by name.
 ```
 
 **Connection Details:**
-- Host: `localhost`
+- Host: From `MYSQL_HOST` (default: `localhost`)
 - User: `root`
-- Password: `rootpassword`
-- Database: `schoolday`
+- Password: From `MYSQL_ROOT_PASSWORD` in `infra/.env`
+- Database: From `MYSQL_DATABASE` in `infra/.env` (default: `schoolday`)
+
+**Note:** This script loads credentials from `infra/.env` file.
 
 **Tables Created:**
 1. **user** - User accounts (email, name, password, status)
@@ -407,7 +451,7 @@ podman volume rm mysql-data
 
 # If needed, connect to test database manually
 mysql -h localhost -u root -p schoolday_test
-# Password: rootpassword
+# Enter password from your MYSQL_ROOT_PASSWORD env var when prompted
 ```
 
 ### 6. Production-like Environment Setup
@@ -425,21 +469,36 @@ mysql -h localhost -u root -p schoolday_test
 
 ## Database Configuration
 
+### Environment Variables
+
+All database credentials are now configured via environment variables for security:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MYSQL_ROOT_PASSWORD` | MySQL root password | *Required - must be set* |
+| `MYSQL_DATABASE` | Database name | `schoolday` |
+| `MYSQL_HOST` | MySQL host | `localhost` |
+| `MYSQL_PORT` | MySQL port | `3306` |
+
+**Configuration Files:**
+- **Shell scripts:** Load from `infra/.env`
+- **Spring Boot app:** Uses environment variables
+
 ### Production Database
-- **Database Name:** `schoolday`
-- **Host:** `localhost`
-- **Port:** `3306`
+- **Database Name:** From `MYSQL_DATABASE` env var (default: `schoolday`)
+- **Host:** From `MYSQL_HOST` env var (default: `localhost`)
+- **Port:** From `MYSQL_PORT` env var (default: `3306`)
 - **User:** `root`
-- **Password:** `rootpassword`
-- **Connection URL:** `jdbc:mysql://localhost:3306/schoolday`
+- **Password:** From `MYSQL_ROOT_PASSWORD` env var
+- **Connection URL:** `jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}`
 
 ### Test Database
-- **Database Name:** `schoolday_test`
-- **Host:** `localhost`
-- **Port:** `3306`
+- **Database Name:** `schoolday_test` (hardcoded)
+- **Host:** From `MYSQL_HOST` env var (default: `localhost`)
+- **Port:** From `MYSQL_PORT` env var (default: `3306`)
 - **User:** `root`
-- **Password:** `rootpassword`
-- **Connection URL:** `jdbc:mysql://localhost:3306/schoolday_test`
+- **Password:** From `MYSQL_ROOT_PASSWORD` env var
+- **Connection URL:** `jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/schoolday_test`
 
 ### Container Details
 - **Container Name:** `mysql8`
@@ -451,17 +510,19 @@ mysql -h localhost -u root -p schoolday_test
 
 **Production:** [src/main/resources/application.properties](src/main/resources/application.properties)
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/schoolday
+spring.datasource.url=jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:schoolday}
 spring.datasource.username=root
-spring.datasource.password=rootpassword
+spring.datasource.password=${MYSQL_ROOT_PASSWORD}
 ```
 
 **Test:** [src/test/resources/application.properties](src/test/resources/application.properties)
 ```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/schoolday_test
+spring.datasource.url=jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/schoolday_test
 spring.datasource.username=root
-spring.datasource.password=rootpassword
+spring.datasource.password=${MYSQL_ROOT_PASSWORD}
 ```
+
+**Note:** Spring Boot will read these environment variables at runtime. Make sure to export them in your shell or IDE.
 
 ---
 
@@ -507,8 +568,8 @@ podman network rm dev-schoolday-net
 # Verify container is running
 podman ps | grep mysql8
 
-# Check if MySQL is ready
-podman exec mysql8 mysqladmin ping -h localhost -u root -prootpassword
+# Check if MySQL is ready (you'll be prompted for password)
+podman exec mysql8 mysqladmin ping -h localhost -u root -p
 
 # Wait 30 seconds for MySQL to fully start
 sleep 30
@@ -520,8 +581,8 @@ sleep 30
 # Check MySQL logs
 podman logs mysql8
 
-# Try connecting manually
-mysql -h localhost -u root -prootpassword
+# Try connecting manually (you'll be prompted for password)
+mysql -h localhost -u root -p
 
 # Verify SQL script syntax
 cat infra/db/sql/schema.sql
@@ -532,11 +593,11 @@ cat infra/db/sql/schema.sql
 # Reset test database
 ./infra/db/reset_test_db.sh
 
-# Clear test data manually
-mysql -h localhost -u root -prootpassword schoolday_test < src/test/resources/sql/clear_all_data.sql
+# Clear test data manually (you'll be prompted for password)
+mysql -h localhost -u root -p schoolday_test < src/test/resources/sql/clear_all_data.sql
 
-# Verify base data is present
-mysql -h localhost -u root -prootpassword -e "SELECT COUNT(*) FROM schoolday_test.user;"
+# Verify base data is present (you'll be prompted for password)
+mysql -h localhost -u root -p -e "SELECT COUNT(*) FROM schoolday_test.user;"
 ```
 
 ### Permission Issues
@@ -588,9 +649,9 @@ podman volume rm mysql-data
 ### Maven/Spring Boot Issues
 
 #### Tests cannot connect to database
-1. Verify test database exists:
+1. Verify test database exists (you'll be prompted for password):
 ```bash
-mysql -h localhost -u root -prootpassword -e "SHOW DATABASES;" | grep schoolday_test
+mysql -h localhost -u root -p -e "SHOW DATABASES;" | grep schoolday_test
 ```
 
 2. Setup test database if missing:
@@ -606,9 +667,22 @@ mysql -h localhost -u root -prootpassword -e "SHOW DATABASES;" | grep schoolday_
 podman ps | grep mysql8
 ```
 
-2. Verify connection properties in application.properties
+2. Verify environment variables are exported:
+```bash
+echo $MYSQL_ROOT_PASSWORD
+echo $MYSQL_HOST
+echo $MYSQL_PORT
+```
 
-3. Check application logs for specific errors
+3. Export variables if needed:
+```bash
+export MYSQL_ROOT_PASSWORD=your_password_here
+export MYSQL_HOST=localhost
+export MYSQL_PORT=3306
+export MYSQL_DATABASE=schoolday
+```
+
+4. Check application logs for specific errors
 
 ---
 
@@ -627,13 +701,16 @@ podman ps | grep mysql8
 ### Direct MySQL Access
 ```bash
 # Connect to production database
-mysql -h localhost -u root -prootpassword schoolday
+mysql -h localhost -u root -p schoolday
+# Enter password from your MYSQL_ROOT_PASSWORD env var when prompted
 
 # Connect to test database
-mysql -h localhost -u root -prootpassword schoolday_test
+mysql -h localhost -u root -p schoolday_test
+# Enter password from your MYSQL_ROOT_PASSWORD env var when prompted
 
 # Execute from container
-podman exec -it mysql8 mysql -u root -prootpassword schoolday
+podman exec -it mysql8 mysql -u root -p schoolday
+# Enter password from your MYSQL_ROOT_PASSWORD env var when prompted
 ```
 
 ### Useful MySQL Commands
@@ -672,7 +749,7 @@ SELECT id, name, permissions FROM role;
 | Reset test DB | `./infra/db/reset_test_db.sh` |
 | Run tests | `./mvnw test` |
 | Run application | `./mvnw spring-boot:run` |
-| Connect to DB | `mysql -h localhost -u root -prootpassword schoolday` |
+| Connect to DB | `mysql -h localhost -u root -p schoolday` |
 
 ---
 
