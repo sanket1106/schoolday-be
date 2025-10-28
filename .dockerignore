@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+*.iws
+*.ipr
+
+# Build artifacts
+target/
+build/
+*.jar
+*.war
+
+# Environment files
+.env
+infra/.env
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+src/test/
+
+# Maven wrapper (optional - comment out if you want to include it)
+# .mvn/
+# mvnw
+# mvnw.cmd
