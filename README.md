@@ -345,7 +345,39 @@ docker-compose up --build
 
 ### AWS ECS Deployment
 
-Deploy to production using AWS ECS Fargate:
+#### Option 1: Automated Setup (Recommended)
+
+Use automated scripts to set up complete AWS infrastructure:
+
+```bash
+# Run all setup scripts at once (~15-20 minutes)
+cd infra/deploy/aws-setup
+./setup-all.sh us-east-1
+
+# Or run scripts individually for more control
+./01-create-vpc.sh us-east-1
+./02-create-security-groups.sh
+./03-create-iam-roles.sh
+./04-create-secrets.sh
+./05-create-rds.sh db.t3.micro true
+./06-create-alb.sh
+./07-create-ecs.sh
+```
+
+**What gets created:**
+- VPC with public/private subnets and NAT gateway
+- Security groups for ALB, ECS, and RDS
+- IAM roles with proper permissions
+- MySQL password in Secrets Manager
+- RDS MySQL database (Multi-AZ)
+- Application Load Balancer
+- ECS Cluster and Service
+
+**See:** [infra/deploy/aws-setup/README.md](infra/deploy/aws-setup/README.md) for detailed instructions
+
+#### Option 2: Manual Setup
+
+Follow the step-by-step manual guide:
 
 ```bash
 # 1. Build and push Docker image
@@ -355,10 +387,10 @@ Deploy to production using AWS ECS Fargate:
 ./infra/deploy/deploy-to-ecs.sh schoolday-cluster schoolday-service us-east-1
 ```
 
-**Complete deployment guide:** [AWS_ECS_DEPLOYMENT.md](AWS_ECS_DEPLOYMENT.md)
+**Complete manual guide:** [AWS_ECS_DEPLOYMENT.md](AWS_ECS_DEPLOYMENT.md)
 
 **Includes:**
-- Infrastructure setup (VPC, Security Groups, IAM)
+- Manual infrastructure setup (VPC, Security Groups, IAM)
 - RDS MySQL configuration
 - ECS Fargate deployment
 - Monitoring and logging
